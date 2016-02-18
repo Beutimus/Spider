@@ -13,6 +13,11 @@ public class STGSiteTest {
 		Spider spider = new Spider("http://www.stgconsulting.com");
 		
 		spider.addSiteURL("stgconsulting.com");
+		spider.addWhiteListURL("www.softwaretechnologygroup.com");
+		spider.addWhiteListURL("farm3.staticflickr.com");
+		spider.addWhiteListURL("farm4.staticflickr.com");
+		spider.addIgnoreURL("&");
+		spider.addIgnoreURL("_page_id");
 		
 		String errors = spider.walkSite();
 		

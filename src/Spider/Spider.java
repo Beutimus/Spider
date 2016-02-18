@@ -23,17 +23,26 @@ import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 public class Spider {
 	
 	//private static final String ValidURLPattern = "^https?://www\\.[A-Za-z0-9]+\\..+";
+	// TODO: Refactor the walk section so there isn't repeated code with links/images
+	// TODO: Maybe make it so users can configure what tags we look at on the page?
+	// TODO: Add in some sort of 'ignore' feature (avoid image repetition)
+	// TODO: Make a 'unique' add to avoid queue filling with repeated URLs
+	// TODO: Make the return value of the 'walk' function something more than a straight String
+	// TODO: Make spider a bit more resilient if the browser gets closed
 	
 	private String startURL = "";
 	private boolean followAllLinks = true;
+	private int waitTimeInMilliseconds = 1000; // Default wait time of 1 second
 	
 	private HashSet<String> whitelistedURLs; // List of allowed URLs
 	private HashSet<String> siteURLs;        // List of URLs in the target 'site'
+	private HashSet<String> ignoreURLs;      // List of URLs that should be ignored
 	
 	private Spider()
 	{
 		whitelistedURLs = new HashSet<String>();
 		siteURLs = new HashSet<String>();
+		ignoreURLs = new HashSet<String>();
 	}
 	
 	/**
@@ -61,6 +70,7 @@ public class Spider {
 	
 	/**
 	 * Add a URL that is 'safe' for the spider to visit
+	 * Any site visited that isn't in the whitelist will cause an error to be generated
 	 * 
 	 * @param whiteListURL URL to add
 	 */
@@ -86,6 +96,19 @@ public class Spider {
 		whitelistedURLs.add(siteURL);
 	}
 
+	/**
+	 * Adds a URL to the ignore list. If a target URL matches this list, it won't be considered
+	 * 
+	 * @param ignoreURL
+	 */
+	public void addIgnoreURL(String ignoreURL)
+	{
+		if (ignoreURL == null || ignoreURL.isEmpty())
+			throw new InvalidParameterException("Ignore URL must not be null or empty");
+		
+		ignoreURLs.add(ignoreURL);
+	}
+	
 	/**
 	 * Orders the spider to 'walk' through the given site.
 	 * @return A String containing all of the errors found.
@@ -138,7 +161,7 @@ public class Spider {
 					driver.get(visit);
 					
 					try {
-						Thread.sleep(1000);
+						Thread.sleep(waitTimeInMilliseconds);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -146,61 +169,9 @@ public class Spider {
 					
 					//System.out.println(" Recognized site URL, spidering through page");
 					
-					//System.out.println(" Please implement link spider");
-					List<WebElement> links = driver.findElements(By.tagName("a"));
+					scanPage(driver, toVisitURLs, "a", "href");
 					
-					for (WebElement link : links)
-					{
-						try
-						{
-							String target = link.getAttribute("href");
-							
-							//System.out.println("  Spider found possible link to visit: " + target);
-							
-							if (target != null && 
-								(target.startsWith("http://") || target.startsWith("https://")))
-							{
-								//System.out.println("  Valid link found, adding to visit list: " + target);
-								toVisitURLs.add(target);
-								
-								// DEBUG
-								if (target.toLowerCase().contains("facebook"))
-								{
-									System.out.println("Facebook found");
-								}
-							}
-						}
-						catch (StaleElementReferenceException e)
-						{
-							// Don't really care about Stale Elements
-							;
-						}
-					}
-					
-					//System.out.println(" Please Implement image spider");
-					List<WebElement> images = driver.findElements(By.tagName("img"));
-					
-					for (WebElement image : images)
-					{
-						try
-						{
-							String target = image.getAttribute("src");
-							
-							//System.out.println("  Spider found possible link to visit: " + target);
-							
-							if (target != null && 
-								(target.startsWith("http://") || target.startsWith("https://")))
-							{
-								//System.out.println("  Valid link found, adding to visit list: " + target);
-								toVisitURLs.add(target);
-							}
-						}
-						catch (StaleElementReferenceException e)
-						{
-							// Don't really care about Stale Elements
-							;
-						}
-					}
+					scanPage(driver, toVisitURLs, "img", "src");
 					
 					visitedURLs.add(visit);
 				}
@@ -222,7 +193,7 @@ public class Spider {
 					// Is it in the whitelist?
 					if (hashSetPartialMatch(whitelistedURLs, visit) == true)
 					{
-						System.out.println("Targeted url is whitelisted: " + visit);
+						//System.out.println("Targeted url is whitelisted: " + visit);
 					}
 					else
 					{
@@ -259,10 +230,7 @@ public class Spider {
 		return false;
 	}
 	
-	/**
-	 * 
-	 * @return
-	 */
+	// Perform a REST call to see if a link works
 	private boolean checkLinkBroken(String url)
 	{
 		HttpURLConnection connection;
@@ -281,9 +249,38 @@ public class Spider {
 				return false;
 			}
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return false;
 		}		
+	}
+
+	// Scans the current driver page, extracting out URLs
+	private void scanPage(WebDriver driver, Queue<String> toVisitURLs, String tagName, String targetAttribute)
+	{
+		List<WebElement> links = driver.findElements(By.tagName(tagName));
+		
+		for (WebElement link : links)
+		{
+			try
+			{
+				String target = link.getAttribute(targetAttribute);
+				
+				//System.out.println("  Spider found possible link to visit: " + target);
+				
+				if (target != null && 
+					(target.startsWith("http://") || target.startsWith("https://")) &&
+					hashSetPartialMatch(ignoreURLs, target) == false
+				   )
+				{
+					//System.out.println("  Valid link found, adding to visit list: " + target);
+					toVisitURLs.add(target);
+				}
+			}
+			catch (StaleElementReferenceException e)
+			{
+				// Don't really care about Stale Elements
+				;
+			}
+		}
 	}
 }
