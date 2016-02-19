@@ -25,8 +25,6 @@ public class Spider {
 	//private static final String ValidURLPattern = "^https?://www\\.[A-Za-z0-9]+\\..+";
 	// TODO: Refactor the walk section so there isn't repeated code with links/images
 	// TODO: Maybe make it so users can configure what tags we look at on the page?
-	// TODO: Add in some sort of 'ignore' feature (avoid image repetition)
-	// TODO: Make a 'unique' add to avoid queue filling with repeated URLs
 	// TODO: Make the return value of the 'walk' function something more than a straight String
 	// TODO: Make spider a bit more resilient if the browser gets closed
 	
@@ -181,6 +179,7 @@ public class Spider {
 					//System.out.println("Please implement verify link works");
 					if (checkLinkBroken(visit) == false)
 					{
+						//System.out.println("DEBUG: Broken link found.");
 						errors += "Broken link found: " + visit + "\n";
 					}
 					
@@ -235,9 +234,13 @@ public class Spider {
 	{
 		HttpURLConnection connection;
 		
+		//System.out.println("DEBUG: checkLinkBroken visiting " + url);
+		
 		try {
 			connection = (HttpURLConnection) new URL(url).openConnection();
 			int response = connection.getResponseCode();
+			
+			//System.out.println("DEBUG: Response code: " + response);
 			
 			// Check if response is in one of the 'acceptable' ranges
 			if (response >= 200 && response < 400)
