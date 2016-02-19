@@ -17,7 +17,7 @@ public class STGSiteTest {
 		spider.addWhiteListURL("farm3.staticflickr.com");
 		spider.addWhiteListURL("farm4.staticflickr.com");
 		spider.addIgnoreURL("&");
-		spider.addIgnoreURL("_page_id");
+		spider.addIgnoreURL("_page_id"); 
 		
 		String errors = spider.walkSite();
 		

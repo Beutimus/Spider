@@ -151,7 +151,7 @@ public class Spider {
 				// Is it a site URL that we have to actually visit?
 				if (hashSetPartialMatch(siteURLs, visit))
 				{
-					// Verify the link works
+					// Verify the link works 
 					if (checkLinkBroken(visit) == false)
 					{
 						errors += "Tried to visit broken link: " + visit + "\n";
