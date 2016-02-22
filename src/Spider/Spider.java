@@ -119,16 +119,16 @@ public class Spider {
 		
 		String errors = "";
 		
-		Queue<String> toVisitURLs = new LinkedBlockingQueue<String>();
+		Queue<Strand> toVisitURLs = new LinkedBlockingQueue<Strand>();
 		HashSet<String> visitedURLs = new HashSet<String>();
 
 		WebDriver driver = new FirefoxDriver();
 		
-		toVisitURLs.add(startURL);
+		toVisitURLs.add(new Strand ("", startURL));
 		
 		while (toVisitURLs.isEmpty() == false)
 		{
-			String visit = toVisitURLs.poll();
+			Strand visit = toVisitURLs.poll();
 			//System.out.println("Spider is now considering visiting:" + visit);
 			//if (visit.toLowerCase().contains("facebook"))
 			//{
@@ -136,7 +136,7 @@ public class Spider {
 			//}
 			
 			// Check if we've visited this URL already
-			if (visitedURLs.contains(visit))
+			if (visitedURLs.contains(visit.getDestination()))
 			{
 				//System.out.println("Spider already visited that.")
 				;
@@ -147,16 +147,16 @@ public class Spider {
 				
 				//System.out.println("Site matching?");
 				// Is it a site URL that we have to actually visit?
-				if (hashSetPartialMatch(siteURLs, visit))
+				if (hashSetPartialMatch(siteURLs, visit.getDestination()))
 				{
 					// Verify the link works 
-					if (checkLinkBroken(visit) == false)
+					if (checkLinkBroken(visit.getDestination()) == false)
 					{
 						errors += "Tried to visit broken link: " + visit + "\n";
 					}
 					
 					//System.out.println("Spider is now visiting: " + visit);
-					driver.get(visit);
+					driver.get(visit.getDestination());
 					
 					try {
 						Thread.sleep(waitTimeInMilliseconds);
@@ -171,13 +171,13 @@ public class Spider {
 					
 					scanPage(driver, toVisitURLs, "img", "src");
 					
-					visitedURLs.add(visit);
+					visitedURLs.add(visit.getDestination());
 				}
 				else
 				{
 					// Make sure the link is still valid.
 					//System.out.println("Please implement verify link works");
-					if (checkLinkBroken(visit) == false)
+					if (checkLinkBroken(visit.getDestination()) == false)
 					{
 						//System.out.println("DEBUG: Broken link found.");
 						errors += "Broken link found: " + visit + "\n";
@@ -190,7 +190,7 @@ public class Spider {
 					
 					//System.out.println("WhiteListMatch?");
 					// Is it in the whitelist?
-					if (hashSetPartialMatch(whitelistedURLs, visit) == true)
+					if (hashSetPartialMatch(whitelistedURLs, visit.getDestination()) == true)
 					{
 						//System.out.println("Targeted url is whitelisted: " + visit);
 					}
@@ -199,7 +199,7 @@ public class Spider {
 						errors += "Non-whitelisted URL was linked: " + visit + "\n";
 					}
 					
-					visitedURLs.add(visit);
+					visitedURLs.add(visit.getDestination());
 				}
 			}
 		}
@@ -258,7 +258,7 @@ public class Spider {
 	}
 
 	// Scans the current driver page, extracting out URLs
-	private void scanPage(WebDriver driver, Queue<String> toVisitURLs, String tagName, String targetAttribute)
+	private void scanPage(WebDriver driver, Queue<Strand> toVisitURLs, String tagName, String targetAttribute)
 	{
 		List<WebElement> links = driver.findElements(By.tagName(tagName));
 		
@@ -276,7 +276,7 @@ public class Spider {
 				   )
 				{
 					//System.out.println("  Valid link found, adding to visit list: " + target);
-					toVisitURLs.add(target);
+					toVisitURLs.add(new Strand(driver.getCurrentUrl(),  target));
 				}
 			}
 			catch (StaleElementReferenceException e)
