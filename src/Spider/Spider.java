@@ -167,9 +167,17 @@ public class Spider {
 					
 					//System.out.println(" Recognized site URL, spidering through page");
 					
+					// Scan page for images and links to check
 					scanPage(driver, toVisitURLs, "a", "href");
 					
 					scanPage(driver, toVisitURLs, "img", "src");
+					
+					// Verify we got redirected to the right place
+					if (driver.getCurrentUrl().equals(visit.getDestination()) == false)
+					{
+						errors += "Link did not lead to where expected.\n" +
+					              "Current URL: " + driver.getCurrentUrl() + " link was " + visit.getDestination() + "|\n";
+					}
 					
 					visitedURLs.add(visit.getDestination());
 				}
