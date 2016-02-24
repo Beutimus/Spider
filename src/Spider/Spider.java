@@ -1,16 +1,20 @@
 package Spider;
 
 import java.io.Console;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Paths;
 import java.security.InvalidParameterException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.nio.file.*;
 import java.util.regex.*;
 
 import org.openqa.selenium.By;
@@ -19,6 +23,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
+
+import com.google.common.io.Files;
 
 public class Spider {
 	
@@ -36,11 +42,14 @@ public class Spider {
 	private HashSet<String> siteURLs;        // List of URLs in the target 'site'
 	private HashSet<String> ignoreURLs;      // List of URLs that should be ignored
 	
+	FileWriter writer;
+	
 	private Spider()
 	{
 		whitelistedURLs = new HashSet<String>();
 		siteURLs = new HashSet<String>();
 		ignoreURLs = new HashSet<String>();
+		SetupFile();
 	}
 	
 	/**
@@ -48,7 +57,6 @@ public class Spider {
 	 * 
 	 * @param startingURL A URL where the spider should start
 	 */
-	
 	public Spider(String startingURL)
 	{
 		this();
@@ -64,6 +72,19 @@ public class Spider {
 		// I was experimenting with validating that the URL was valid, but it proved to be too difficult
 		
 		startURL = startingURL;
+	}
+	
+	@Override
+	protected void finalize() throws Throwable {
+		try
+		{
+			CloseFile();
+		} catch (Throwable t)
+		{
+			throw t;
+		} finally {
+			super.finalize();
+		}
 	}
 	
 	/**
@@ -152,7 +173,8 @@ public class Spider {
 					// Verify the link works 
 					if (checkLinkBroken(visit.getDestination()) == false)
 					{
-						errors += "Tried to visit broken link: " + visit + "\n";
+						errors = reportErrors("Tried to visit broken link: " + visit + "\n", errors);
+						//errors += "Tried to visit broken link: " + visit + "\n";
 					}
 					
 					//System.out.println("Spider is now visiting: " + visit);
@@ -175,8 +197,10 @@ public class Spider {
 					// Verify we got redirected to the right place
 					if (driver.getCurrentUrl().equals(visit.getDestination()) == false)
 					{
-						errors += "Link did not lead to where expected.\n" +
-					              "Current URL: " + driver.getCurrentUrl() + " link was " + visit.getDestination() + "|\n";
+						errors = reportErrors("Link did not lead to where expected.\n" +
+					              "Current URL: " + driver.getCurrentUrl() + " link was " + visit.getDestination() + " source was " + visit.getSource() + "\n", errors);
+						//errors += "Link did not lead to where expected.\n" +
+					    //          "Current URL: " + driver.getCurrentUrl() + " link was " + visit.getDestination() + "|\n";
 					}
 					
 					visitedURLs.add(visit.getDestination());
@@ -188,7 +212,8 @@ public class Spider {
 					if (checkLinkBroken(visit.getDestination()) == false)
 					{
 						//System.out.println("DEBUG: Broken link found.");
-						errors += "Broken link found: " + visit + "\n";
+						errors = reportErrors("Broken link found: " + visit + "\n", errors);
+						//errors += "Broken link found: " + visit + "\n";
 					}
 					
 					//if (visit.toLowerCase().contains("facebook"))
@@ -204,7 +229,8 @@ public class Spider {
 					}
 					else
 					{
-						errors += "Non-whitelisted URL was linked: " + visit + "\n";
+						errors = reportErrors("Non-whitelisted URL was linked: " + visit + "\n", errors);
+						//errors += "Non-whitelisted URL was linked: " + visit + "\n";
 					}
 					
 					visitedURLs.add(visit.getDestination());
@@ -291,6 +317,55 @@ public class Spider {
 			{
 				// Don't really care about Stale Elements
 				;
+			}
+		}
+	}
+	
+	private void SetupFile()
+	{
+		try
+		{
+			writer = new FileWriter(getFileName(), true);
+		}
+		catch (IOException e)
+		{
+			System.out.println("Failed to open file");
+			e.printStackTrace();
+		}		
+	}
+	
+	private String getFileName()
+	{
+		return System.currentTimeMillis() + ".txt";
+	}
+	
+	private String reportErrors(String errorToReport, String existingErrors)
+	{
+		if (writer != null)
+		{
+			try {
+				writer.write(errorToReport);
+				//writer.write(System.getProperty( "line.separator" ));
+				writer.flush();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		return existingErrors + errorToReport;
+	}
+	
+	private void CloseFile()
+	{
+		System.out.println("Commence closing");
+		if (writer != null)
+		{
+			try {
+				writer.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}
