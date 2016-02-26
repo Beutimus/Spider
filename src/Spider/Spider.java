@@ -9,6 +9,9 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Paths;
 import java.security.InvalidParameterException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
@@ -336,7 +339,10 @@ public class Spider {
 	
 	private String getFileName()
 	{
-		return System.currentTimeMillis() + ".txt";
+		LocalDateTime date = LocalDateTime.now();
+		DateTimeFormatter format = DateTimeFormatter.ofPattern("'Date'ddMMMyyyy.'Time'H.m.s.S");	
+		
+		return "SpiderRun" + date.format(format) + ".txt";
 	}
 	
 	private String reportErrors(String errorToReport, String existingErrors)
