@@ -23,16 +23,4 @@ public class STGSiteTest {
 		
 		System.out.println("Errors:\n" + errors);
 	}
-	
-	@Test
-	public void InvalidSite()
-	{
-		Spider spider = new Spider("http://www.assdfsdfsdfdsdf.com/");
-		
-		spider.addSiteURL("http://www.assdfsdfsdfdsdf.com/");
-		
-		String errors = spider.walkSite();
-		
-		System.out.println("Errors:\n" + errors);
-	}
 }

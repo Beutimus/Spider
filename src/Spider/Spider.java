@@ -1,10 +1,12 @@
 package Spider;
 
+import java.awt.image.BufferedImage;
 import java.io.Console;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Paths;
@@ -20,6 +22,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.nio.file.*;
 import java.util.regex.*;
 
+import javax.imageio.ImageIO;
+import javax.net.ssl.HttpsURLConnection;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
@@ -32,7 +37,6 @@ import com.google.common.io.Files;
 public class Spider {
 	
 	//private static final String ValidURLPattern = "^https?://www\\.[A-Za-z0-9]+\\..+";
-	// TODO: Refactor the walk section so there isn't repeated code with links/images
 	// TODO: Maybe make it so users can configure what tags we look at on the page?
 	// TODO: Make the return value of the 'walk' function something more than a straight String
 	// TODO: Make spider a bit more resilient if the browser gets closed
@@ -148,7 +152,7 @@ public class Spider {
 
 		WebDriver driver = new FirefoxDriver();
 		
-		toVisitURLs.add(new Strand ("", startURL));
+		toVisitURLs.add(new Strand ("", startURL, false));
 		
 		while (toVisitURLs.isEmpty() == false)
 		{
@@ -179,6 +183,10 @@ public class Spider {
 						errors = reportErrors("Tried to visit broken link: " + visit + "\n", errors);
 						//errors += "Tried to visit broken link: " + visit + "\n";
 					}
+					else if (visit.isImageLink() == true && isImageLoadedCorrectly(visit.getDestination()) == false)
+					{
+						errors = reportErrors("Image is bad:" + visit + "\n", errors);
+					}
 					
 					//System.out.println("Spider is now visiting: " + visit);
 					driver.get(visit.getDestination());
@@ -193,9 +201,9 @@ public class Spider {
 					//System.out.println(" Recognized site URL, spidering through page");
 					
 					// Scan page for images and links to check
-					scanPage(driver, toVisitURLs, "a", "href");
+					scanPage(driver, toVisitURLs, "a", "href", false);
 					
-					scanPage(driver, toVisitURLs, "img", "src");
+					scanPage(driver, toVisitURLs, "img", "src", true);
 					
 					// Verify we got redirected to the right place
 					if (driver.getCurrentUrl().equals(visit.getDestination()) == false)
@@ -269,12 +277,35 @@ public class Spider {
 	// Perform a REST call to see if a link works
 	private boolean checkLinkBroken(String url)
 	{
-		HttpURLConnection connection;
-		
 		//System.out.println("DEBUG: checkLinkBroken visiting " + url);
 		
+		if (url.startsWith("http://"))
+		{		
+			System.out.println("DEBUG: " + url);
+			return checkHttpLink(url);	
+		}
+		else if (url.startsWith("https://"))
+		{
+			return checkHttpsLink(url);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	private boolean checkHttpsLink(String url) {
+		HttpsURLConnection connection;
+		
 		try {
-			connection = (HttpURLConnection) new URL(url).openConnection();
+			URL urlObject = new URL(url);
+			
+			if (urlObject.getHost() == null || urlObject.getHost().length() == 0)
+			{
+				return false;
+			}			
+			
+			connection = (HttpsURLConnection) urlObject.openConnection();
 			int response = connection.getResponseCode();
 			
 			//System.out.println("DEBUG: Response code: " + response);
@@ -291,11 +322,45 @@ public class Spider {
 		} catch (IOException e) {
 			e.printStackTrace();
 			return false;
-		}		
+		} 
+	}
+
+	private boolean checkHttpLink(String url) {
+		HttpURLConnection connection;
+		
+		try {
+			URL urlObject = new URL(url);
+			
+			if (urlObject.getHost() == null || urlObject.getHost().length() == 0)
+			{
+				return false;
+			}
+			
+			System.out.println(urlObject.getHost());
+			System.out.println(urlObject.toString());
+			
+			connection = (HttpURLConnection) urlObject.openConnection();
+			int response = connection.getResponseCode();
+			
+			//System.out.println("DEBUG: Response code: " + response);
+			
+			// Check if response is in one of the 'acceptable' ranges
+			if (response >= 200 && response < 400)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 	// Scans the current driver page, extracting out URLs
-	private void scanPage(WebDriver driver, Queue<Strand> toVisitURLs, String tagName, String targetAttribute)
+	private void scanPage(WebDriver driver, Queue<Strand> toVisitURLs, String tagName, String targetAttribute, boolean expectLinkToBeImage)
 	{
 		List<WebElement> links = driver.findElements(By.tagName(tagName));
 		
@@ -313,7 +378,7 @@ public class Spider {
 				   )
 				{
 					//System.out.println("  Valid link found, adding to visit list: " + target);
-					toVisitURLs.add(new Strand(driver.getCurrentUrl(),  target));
+					toVisitURLs.add(new Strand(driver.getCurrentUrl(),  target, expectLinkToBeImage));
 				}
 			}
 			catch (StaleElementReferenceException e)
@@ -322,6 +387,38 @@ public class Spider {
 				;
 			}
 		}
+	}
+	
+	public boolean isImageLoadedCorrectly(String destination) {
+		
+		try {
+			BufferedImage img = ImageIO.read(new URL(destination));
+			
+			int height = img.getHeight();
+			int width = img.getWidth();
+
+			// TODO: We need to decode JPG images somehow
+			// http://stackoverflow.com/questions/8039444/how-to-detect-corrupted-images-png-jpg-in-java
+			
+			//System.out.println("DEBUG: begin images scan " + height + " x " + width);
+			
+			for(int x = 0; x < width; x++)
+			{
+				for (int y = 0; y < height; y++)
+				{
+					// TODO:  I think there might be a problem in using the getRGB function.  http://docs.oracle.com/javase/7/docs/api/java/awt/image/BufferedImage.html#getRGB%28int,%20int%29
+					img.getRGB(x, y);
+				}
+			}
+			
+			//System.out.println("DEBUG: image scan finished");
+		} catch (java.lang.ArrayIndexOutOfBoundsException | IOException e) {
+			e.printStackTrace();
+			//System.out.println("DEBUG: image scan failed");
+			return false;
+		}
+
+		return true;
 	}
 	
 	private void SetupFile()
@@ -364,7 +461,7 @@ public class Spider {
 	
 	private void CloseFile()
 	{
-		System.out.println("Commence closing");
+		//System.out.println("DEBUG: Commence closing");
 		if (writer != null)
 		{
 			try {
