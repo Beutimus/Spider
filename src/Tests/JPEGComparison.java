@@ -6,25 +6,32 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class JPEGComparison {
 
-	String baseFile = "C:/Users/Owner/workspace/STGSpider/rawKitten.jpg";
-	String quality10FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten10.jpg";
-	String quality30FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten30.jpg";
-	String quality70FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten70.jpg";
-	String quality100FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten100.jpg";
+	static String baseFile = "C:/Users/Owner/workspace/STGSpider/rawKitten.jpg";
+	static String quality10FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten10.jpg";
+	static String quality30FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten30.jpg";
+	static String quality70FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten70.jpg";
+	static String quality100FilePath = "C:/Users/Owner/workspace/STGSpider/rawKitten100.jpg";
 	
-	@Test
-	public void compareToBaseQuality()
+	@DataProvider(name="filePaths")
+	public static Object[][] filePaths()
+	{
+		return new Object[][] {{quality10FilePath},{quality30FilePath},{quality70FilePath}, {quality100FilePath}, {baseFile}};
+	}
+	
+	@Test(dataProvider = "filePaths")
+	public void compareToBaseQuality(String filePath)
 	{
 		// Set up files
 		File baseImage = null;
 		File compareImage = null;
 		
 		baseImage = new File(baseFile);
-		compareImage = new File(quality10FilePath);
+		compareImage = new File(filePath);
 		
 		try {
 			// Open files
@@ -77,7 +84,6 @@ public class JPEGComparison {
 			
 			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
