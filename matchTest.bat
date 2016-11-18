@@ -1,0 +1,1 @@
+java -cp match-0.9.4.jar at.ofai.music.match.PerformanceMatcher -b -r "C:\Users\Owner\workspace\STGSpider\test.txt" "C:\Users\Owner\workspace\STGSpider\Recording.aiff" "C:\Users\Owner\workspace\STGSpider\Recording16.wav"

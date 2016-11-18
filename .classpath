@@ -17,5 +17,6 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Owner/workspace/STGSpider/lib/musicg-1.4.2.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
