@@ -21,6 +21,7 @@ import java.nio.file.*;
 import java.util.regex.*;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -39,6 +40,7 @@ public class Spider {
 	
 	private String startURL = "";
 	private boolean followAllLinks = true;
+	private boolean gatherWords = true;
 	private int waitTimeInMilliseconds = 1000; // Default wait time of 1 second
 	
 	private HashSet<String> whitelistedURLs; // List of allowed URLs
@@ -143,6 +145,8 @@ public class Spider {
 		
 		String errors = "";
 		
+		Dictionary words = new Dictionary();
+		
 		Queue<Strand> toVisitURLs = new LinkedBlockingQueue<Strand>();
 		HashSet<String> visitedURLs = new HashSet<String>();
 
@@ -186,7 +190,6 @@ public class Spider {
 					try {
 						Thread.sleep(waitTimeInMilliseconds);
 					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					
@@ -196,6 +199,8 @@ public class Spider {
 					scanPage(driver, toVisitURLs, "a", "href");
 					
 					scanPage(driver, toVisitURLs, "img", "src");
+					
+					getWordsFromPage(driver, words);
 					
 					// Verify we got redirected to the right place
 					if (driver.getCurrentUrl().equals(visit.getDestination()) == false)
@@ -247,9 +252,12 @@ public class Spider {
 			driver.quit();
 		}
 		
+		// Process word output
+		writeWordsToFile(words);
+		
 		return errors;
 	}
-	
+
 	// Iterate through a set, and find if something partially matches the
 	// passed in string.
 	private boolean hashSetPartialMatch(HashSet<String> set, String toMatch)
@@ -324,6 +332,46 @@ public class Spider {
 		}
 	}
 	
+	private void getWordsFromPage(WebDriver driver, Dictionary words) {
+		Pattern alpha = Pattern.compile("[A-Za-z]");
+
+		// Pull all text from the page
+		String pageText;
+
+		try
+		{
+			WebElement body = driver.findElement(By.tagName("body"));
+
+			pageText = body.getText();
+
+			// Split page text on common delimiters
+			String[] splitPage = pageText.split("[\\s+/]");
+
+			// Process splits
+			for (String fragment : splitPage)
+			{
+				Matcher match = alpha.matcher(fragment);
+				
+				// Make sure the fragment contains at least one letter
+				if (match.find() == false)
+				{
+					;
+					//System.out.println("Non word found |" + fragment + "|");
+				}
+				else if (fragment.isEmpty() == false)
+				{
+					fragment = customTrim(fragment);
+					
+					words.addWord(fragment);
+				}
+			}
+		}
+		catch (NoSuchElementException|StaleElementReferenceException e)
+		{
+			// No body element, carry on
+		}
+	}
+	
 	private void SetupFile()
 	{
 		try
@@ -354,12 +402,25 @@ public class Spider {
 				//writer.write(System.getProperty( "line.separator" ));
 				writer.flush();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
 		
 		return existingErrors + errorToReport;
+	}
+	
+	private void writeWordsToFile(Dictionary words) {
+		if (writer != null)
+		{
+			try {
+				writer.write(words.getAllWordsFormatted());
+				writer.flush();
+			} catch (IOException e) {
+				System.out.println("Could not write out dictionary words.");
+				e.printStackTrace();
+			}
+			
+		}
 	}
 	
 	private void CloseFile()
@@ -370,9 +431,35 @@ public class Spider {
 			try {
 				writer.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	private String customTrim(String toTrim)
+	{	
+		int begin = -1;
+		int end = -1;
+		
+		for (int i = 0; i < toTrim.length() && begin == -1; i++)
+		{
+			if (Character.isAlphabetic(toTrim.charAt(i)))
+			{
+				begin = i;
+			}
+		}
+		
+		for (int i = (toTrim.length() - 1); i >= 0 && end == -1; i--)
+		{
+			if (Character.isAlphabetic(toTrim.charAt(i)))
+			{
+				end = i;
+			}
+		}
+		
+		if (end <= begin)
+			return "";
+		else
+			return toTrim.substring(begin, end + 1);
 	}
 }
